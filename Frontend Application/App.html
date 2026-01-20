@@ -1,0 +1,241 @@
+import React, { useState } from 'react';
+import { Cloud, Sun, CloudRain, TrendingUp, Info } from 'lucide-react';
+
+const MarkovWeatherApp = () => {
+  const [startState, setStartState] = useState('Sunny');
+  const [days, setDays] = useState(10);
+  const [forecast, setForecast] = useState([]);
+  const [showInfo, setShowInfo] = useState(false);
+
+  // Transition matrix based on your data
+  const transitionMatrix = {
+    'Sunny': { 'Sunny': 0.79, 'Cloudy': 0.13, 'Rain': 0.08 },
+    'Cloudy': { 'Sunny': 0.16, 'Cloudy': 0.63, 'Rain': 0.21 },
+    'Rain': { 'Sunny': 0.08, 'Cloudy': 0.17, 'Rain': 0.75 }
+  };
+
+  const states = ['Sunny', 'Cloudy', 'Rain'];
+
+  const getWeatherIcon = (state) => {
+    switch(state) {
+      case 'Sunny': return <Sun className="w-6 h-6 text-yellow-400" />;
+      case 'Cloudy': return <Cloud className="w-6 h-6 text-gray-400" />;
+      case 'Rain': return <CloudRain className="w-6 h-6 text-blue-400" />;
+      default: return null;
+    }
+  };
+
+  const getWeatherColor = (state) => {
+    switch(state) {
+      case 'Sunny': return 'bg-yellow-100 border-yellow-300';
+      case 'Cloudy': return 'bg-gray-100 border-gray-300';
+      case 'Rain': return 'bg-blue-100 border-blue-300';
+      default: return 'bg-white';
+    }
+  };
+
+  const weightedRandomChoice = (weights) => {
+    const random = Math.random();
+    let sum = 0;
+    
+    for (const [state, weight] of Object.entries(weights)) {
+      sum += weight;
+      if (random <= sum) return state;
+    }
+    return states[states.length - 1];
+  };
+
+  const generateForecast = () => {
+    const result = [startState];
+    let currentState = startState;
+
+    for (let i = 0; i < days; i++) {
+      const weights = transitionMatrix[currentState];
+      const nextState = weightedRandomChoice(weights);
+      result.push(nextState);
+      currentState = nextState;
+    }
+
+    setForecast(result);
+  };
+
+  const calculateStatistics = () => {
+    if (forecast.length === 0) return null;
+
+    const counts = { 'Sunny': 0, 'Cloudy': 0, 'Rain': 0 };
+    forecast.forEach(state => counts[state]++);
+
+    return {
+      sunny: ((counts['Sunny'] / forecast.length) * 100).toFixed(1),
+      cloudy: ((counts['Cloudy'] / forecast.length) * 100).toFixed(1),
+      rain: ((counts['Rain'] / forecast.length) * 100).toFixed(1)
+    };
+  };
+
+  const stats = calculateStatistics();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-3">
+            <TrendingUp className="w-10 h-10 text-indigo-600" />
+            Markov Chain Weather Predictor
+          </h1>
+          <p className="text-gray-600">Predict weather patterns using probabilistic modeling</p>
+        </div>
+
+        {/* Info Button */}
+        <div className="mb-6 flex justify-center">
+          <button
+            onClick={() => setShowInfo(!showInfo)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+          >
+            <Info className="w-4 h-4" />
+            {showInfo ? 'Hide' : 'Show'} Model Info
+          </button>
+        </div>
+
+        {/* Info Panel */}
+        {showInfo && (
+          <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <h3 className="text-xl font-bold mb-4">About This Model</h3>
+            <div className="grid md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="font-semibold mb-2">Transition Probabilities:</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Sun className="w-4 h-4 text-yellow-400" />
+                    <span>Sunny → Sunny: 79% | Cloudy: 13% | Rain: 8%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Cloud className="w-4 h-4 text-gray-400" />
+                    <span>Cloudy → Sunny: 16% | Cloudy: 63% | Rain: 21%</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <CloudRain className="w-4 h-4 text-blue-400" />
+                    <span>Rain → Sunny: 8% | Cloudy: 17% | Rain: 75%</span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <h4 className="font-semibold mb-2">Steady State Probabilities:</h4>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  <li>Sunny: ~36%</li>
+                  <li>Cloudy: ~29%</li>
+                  <li>Rain: ~35%</li>
+                </ul>
+                <p className="mt-4 text-sm text-gray-600">
+                  Based on analysis of weather data with sunshine cutoff = 4 and cloud cutoff = 4
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Controls */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+          <div className="grid md:grid-cols-3 gap-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Starting Weather
+              </label>
+              <select
+                value={startState}
+                onChange={(e) => setStartState(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              >
+                {states.map(state => (
+                  <option key={state} value={state}>{state}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Number of Days: {days}
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="30"
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+                className="w-full"
+              />
+            </div>
+
+            <div className="flex items-end">
+              <button
+                onClick={generateForecast}
+                className="w-full px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition font-medium"
+              >
+                Generate Forecast
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Forecast Display */}
+        {forecast.length > 0 && (
+          <>
+            <div className="bg-white rounded-lg shadow-lg p-6 mb-6">
+              <h3 className="text-xl font-bold mb-4">Weather Forecast</h3>
+              <div className="grid grid-cols-7 gap-2">
+                {forecast.map((state, idx) => (
+                  <div
+                    key={idx}
+                    className={`p-3 rounded-lg border-2 ${getWeatherColor(state)} flex flex-col items-center justify-center`}
+                  >
+                    <div className="text-xs font-medium mb-1">
+                      {idx === 0 ? 'Start' : `Day ${idx}`}
+                    </div>
+                    {getWeatherIcon(state)}
+                    <div className="text-xs mt-1">{state}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Statistics */}
+            <div className="bg-white rounded-lg shadow-lg p-6">
+              <h3 className="text-xl font-bold mb-4">Forecast Statistics</h3>
+              <div className="grid md:grid-cols-3 gap-6">
+                <div className="flex items-center gap-3">
+                  <Sun className="w-8 h-8 text-yellow-400" />
+                  <div>
+                    <div className="text-2xl font-bold text-yellow-600">{stats.sunny}%</div>
+                    <div className="text-sm text-gray-600">Sunny Days</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Cloud className="w-8 h-8 text-gray-400" />
+                  <div>
+                    <div className="text-2xl font-bold text-gray-600">{stats.cloudy}%</div>
+                    <div className="text-sm text-gray-600">Cloudy Days</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <CloudRain className="w-8 h-8 text-blue-400" />
+                  <div>
+                    <div className="text-2xl font-bold text-blue-600">{stats.rain}%</div>
+                    <div className="text-sm text-gray-600">Rainy Days</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Footer */}
+        <div className="text-center mt-8 text-gray-600 text-sm">
+          <p>E265 Markov Chain Coding Project</p>
+          <p className="mt-1">Model trained on historical weather data with SC=4, CC=4</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default MarkovWeatherApp;
